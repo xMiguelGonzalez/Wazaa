@@ -1305,6 +1305,18 @@ function loadExternalVideo() {
  * Convierte URL de video a URL de embed
  */
 function getEmbedUrl(url) {
+    // OK.ru (Odnoklassniki)
+    const okruMatch = url.match(/ok\.ru\/video\/(\d+)/);
+    if (okruMatch) {
+        return `https://ok.ru/videoembed/${okruMatch[1]}`;
+    }
+    
+    // OK.ru mobile
+    const okruMobileMatch = url.match(/m\.ok\.ru\/video\/(\d+)/);
+    if (okruMobileMatch) {
+        return `https://ok.ru/videoembed/${okruMobileMatch[1]}`;
+    }
+    
     // Vimeo
     const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
     if (vimeoMatch) {
@@ -1335,13 +1347,19 @@ function getEmbedUrl(url) {
         return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false`;
     }
     
+    // Mail.ru
+    const mailruMatch = url.match(/my\.mail\.ru\/\w+\/\w+\/video\/\w+\/(\d+)/);
+    if (mailruMatch) {
+        return url; // Mail.ru usa el mismo link para embed
+    }
+    
     // Si es una URL directa de video (mp4, webm)
     if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
         return url;
     }
     
     // Si ya parece ser una URL de embed
-    if (url.includes('embed') || url.includes('player')) {
+    if (url.includes('embed') || url.includes('player') || url.includes('videoembed')) {
         return url;
     }
     
