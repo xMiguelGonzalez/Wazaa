@@ -69,7 +69,8 @@ app.get('/api/create-room', (req, res) => {
 // API: Verificar si una sala existe
 app.get('/api/room/:roomId', (req, res) => {
     const { roomId } = req.params;
-    const room = rooms.get(roomId);
+    const normalizedId = roomId.trim().toLowerCase();
+    const room = rooms.get(normalizedId);
     
     if (room) {
         res.json({ 
@@ -80,6 +81,16 @@ app.get('/api/room/:roomId', (req, res) => {
     } else {
         res.json({ exists: false });
     }
+});
+
+// API: Estado del servidor (para diagnóstico)
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'online',
+        rooms: rooms.size,
+        roomIds: Array.from(rooms.keys()),
+        timestamp: new Date().toISOString()
+    });
 });
 
 // ============================================================================
@@ -102,7 +113,9 @@ io.on('connection', (socket) => {
      * @param {Object} data - { roomName, username }
      */
     socket.on('create-room', ({ roomName, username }) => {
-        const roomId = uuidv4().substring(0, 8);
+        const roomId = uuidv4().substring(0, 8).toLowerCase();
+        
+        console.log(`🏠 Creando sala: ${roomId} por ${username}`);
         
         // Crear la estructura de la sala
         const room = {
@@ -125,6 +138,8 @@ io.on('connection', (socket) => {
         room.users.set(socket.id, { username, isHost: true });
         rooms.set(roomId, room);
         
+        console.log(`✅ Sala ${roomId} creada. Salas activas: ${rooms.size}`);
+        
         // Unir al socket a la sala de Socket.io
         socket.join(roomId);
         currentRoom = roomId;
@@ -146,17 +161,24 @@ io.on('connection', (socket) => {
      * @param {Object} data - { roomId, username }
      */
     socket.on('join-room', ({ roomId, username }) => {
-        const room = rooms.get(roomId);
+        // Normalizar el código (quitar espacios, mayúsculas)
+        const normalizedRoomId = roomId.trim().toLowerCase();
+        
+        console.log(`🔍 Intento de unirse a sala: "${normalizedRoomId}" por ${username}`);
+        console.log(`📋 Salas activas: ${Array.from(rooms.keys()).join(', ') || 'ninguna'}`);
+        
+        const room = rooms.get(normalizedRoomId);
         
         if (!room) {
-            socket.emit('error', { message: 'La sala no existe' });
+            console.log(`❌ Sala "${normalizedRoomId}" no encontrada`);
+            socket.emit('error', { message: `La sala "${roomId}" no existe. Verifica el código o crea una nueva.` });
             return;
         }
         
         // Añadir usuario a la sala
         room.users.set(socket.id, { username, isHost: false });
-        socket.join(roomId);
-        currentRoom = roomId;
+        socket.join(normalizedRoomId);
+        currentRoom = normalizedRoomId;
         currentUsername = username;
         
         // Preparar lista de usuarios
@@ -166,11 +188,11 @@ io.on('connection', (socket) => {
             isHost: data.isHost
         }));
         
-        console.log(`👤 ${username} se unió a la sala: ${roomId}`);
+        console.log(`👤 ${username} se unió a la sala: ${normalizedRoomId}`);
         
         // Notificar al nuevo usuario
         socket.emit('room-joined', {
-            roomId,
+            roomId: normalizedRoomId,
             roomName: room.name,
             isHost: false,
             users: usersList,
@@ -180,7 +202,7 @@ io.on('connection', (socket) => {
         });
         
         // Notificar a los demás usuarios
-        socket.to(roomId).emit('user-joined', {
+        socket.to(normalizedRoomId).emit('user-joined', {
             id: socket.id,
             username,
             isHost: false

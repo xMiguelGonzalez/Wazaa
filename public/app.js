@@ -63,16 +63,30 @@ document.addEventListener('DOMContentLoaded', () => {
  * Inicializa la conexión de Socket.io
  */
 function initializeSocket() {
-    socket = io();
+    socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+    });
     
     // Eventos de conexión
     socket.on('connect', () => {
         console.log('✅ Conectado al servidor:', socket.id);
+        showNotification('Conectado al servidor', 'success');
+        updateConnectionStatus(true);
+    });
+    
+    socket.on('connect_error', (error) => {
+        console.error('❌ Error de conexión:', error.message);
+        showNotification('Error al conectar: ' + error.message, 'error');
+        updateConnectionStatus(false);
     });
     
     socket.on('disconnect', () => {
         console.log('❌ Desconectado del servidor');
         showNotification('Desconectado del servidor', 'error');
+        updateConnectionStatus(false);
     });
     
     socket.on('error', ({ message }) => {
@@ -1549,6 +1563,46 @@ function setupMusicEvents() {
 // ============================================================================
 // UTILIDADES
 // ============================================================================
+
+/**
+ * Actualiza el indicador de estado de conexión
+ */
+function updateConnectionStatus(connected) {
+    let indicator = document.getElementById('connection-status');
+    
+    // Crear indicador si no existe
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'connection-status';
+        indicator.style.cssText = `
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 9999;
+            transition: all 0.3s ease;
+        `;
+        document.body.appendChild(indicator);
+    }
+    
+    if (connected) {
+        indicator.textContent = '● Conectado';
+        indicator.style.background = 'rgba(34, 197, 94, 0.9)';
+        indicator.style.color = 'white';
+        // Ocultar después de 3 segundos
+        setTimeout(() => {
+            indicator.style.opacity = '0.5';
+        }, 3000);
+    } else {
+        indicator.textContent = '● Desconectado';
+        indicator.style.background = 'rgba(239, 68, 68, 0.9)';
+        indicator.style.color = 'white';
+        indicator.style.opacity = '1';
+    }
+}
 
 /**
  * Muestra una notificación toast
