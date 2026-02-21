@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miguel2Gether</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Pacifico&display=swap" rel="stylesheet">
+    <!-- Simple-peer para WebRTC -->
+    <script src="https://unpkg.com/simple-peer@9/simplepeer.min.js"></script>
+</head>
+<body>
+    <!-- ================================================================== -->
+    <!-- PANTALLA DE INICIO - Crear/Unirse a sala                          -->
+    <!-- ================================================================== -->
+    <div id="lobby-screen" class="screen active">
+        <div class="lobby-container">
+            <div class="logo">
+                <h1><span class="logo-miguel">Miguel</span><span class="logo-2gether">2Gether</span></h1>
+                <p>Ve videos y escucha música sincronizados con tus amigos</p>
+            </div>
+            
+            <div class="lobby-form">
+                <div class="form-group">
+                    <label for="username">Tu nombre</label>
+                    <input type="text" id="username" placeholder="Ingresa tu nombre" maxlength="20" required>
+                </div>
+                
+                <div class="lobby-actions">
+                    <button id="btn-create-room" class="btn btn-primary">
+                        Crear Sala
+                    </button>
+                    
+                    <div class="divider">
+                        <span>o</span>
+                    </div>
+                    
+                    <div class="join-room-section">
+                        <input type="text" id="room-code" placeholder="Código de sala" maxlength="8">
+                        <button id="btn-join-room" class="btn btn-secondary">
+                            Unirse
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- PANTALLA PRINCIPAL - Sala de streaming                            -->
+    <!-- ================================================================== -->
+    <div id="room-screen" class="screen">
+        <!-- Header de la sala -->
+        <header class="room-header">
+            <div class="room-brand">
+                <span class="header-title">Miguel<span class="accent">2Gether</span></span>
+            </div>
+            <div class="room-info">
+                <h2 id="room-name">Sala</h2>
+                <div class="room-code-display">
+                    <span>Código:</span>
+                    <code id="room-code-display">ABC123</code>
+                    <button id="btn-copy-code" class="btn-icon" title="Copiar link">⎘</button>
+                </div>
+            </div>
+            <div class="room-actions">
+                <button id="btn-cinema-mode" class="btn btn-secondary">
+                    Modo Cine
+                </button>
+                <button id="btn-leave-room" class="btn btn-danger">
+                    Salir
+                </button>
+            </div>
+        </header>
+
+        <!-- Overlay para modo cine -->
+        <div id="cinema-overlay" class="cinema-overlay hidden">
+            <button id="btn-exit-cinema" class="btn-exit-cinema" title="Salir del Modo Cine (ESC)">×</button>
+        </div>
+
+        <!-- Contenido principal -->
+        <main class="room-main">
+            <!-- Panel izquierdo: Video/Screen share -->
+            <section class="video-section">
+                <!-- Tabs para cambiar entre modos -->
+                <div class="video-tabs">
+                    <button class="tab active" data-tab="youtube">YouTube</button>
+                    <button class="tab" data-tab="video">Video URL</button>
+                    <button class="tab" data-tab="music">Música</button>
+                    <button class="tab" data-tab="screen">Pantalla</button>
+                    <button class="tab" data-tab="roulette">Ruleta</button>
+                </div>
+
+                <!-- Contenedor de YouTube -->
+                <div id="youtube-container" class="tab-content active">
+                    <div class="video-input-section">
+                        <input type="text" id="youtube-url" placeholder="Pega el link de YouTube aquí...">
+                        <button id="btn-load-video" class="btn btn-primary">Cargar</button>
+                    </div>
+                    <div class="video-wrapper">
+                        <div id="youtube-player"></div>
+                        <div id="video-overlay" class="video-overlay hidden">
+                            <span>Sincronizando...</span>
+                        </div>
+                    </div>
+                    <div class="video-controls">
+                        <button id="btn-sync-video" class="btn btn-secondary">Sincronizar</button>
+                        <span id="video-status" class="video-status"></span>
+                    </div>
+                </div>
+
+                <!-- Contenedor de Video URL (cualquier página) -->
+                <div id="video-container" class="tab-content">
+                    <div class="video-input-section">
+                        <input type="text" id="external-video-url" placeholder="URL del video (Vimeo, Dailymotion, etc.)...">
+                        <button id="btn-load-external-video" class="btn btn-primary">Cargar</button>
+                    </div>
+                    <div class="video-wrapper">
+                        <iframe id="external-video-player" src="" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                        <div id="external-video-placeholder" class="video-placeholder">
+                            <div class="placeholder-icon">▶</div>
+                            <p>Pega una URL de video para empezar</p>
+                            <small>Soporta: Vimeo, Dailymotion, Twitch, y más</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenedor de Música -->
+                <div id="music-container" class="tab-content">
+                    <div class="music-section">
+                        <div class="music-header">
+                            <h3>Solo Música</h3>
+                            <p>Reproduce audio de YouTube, SoundCloud o archivos MP3</p>
+                        </div>
+                        <div class="video-input-section">
+                            <input type="text" id="music-url" placeholder="URL de YouTube, SoundCloud o MP3...">
+                            <button id="btn-load-music" class="btn btn-primary">Reproducir</button>
+                        </div>
+                        <div class="music-player-wrapper">
+                            <div id="music-visualizer" class="music-visualizer">
+                                <div class="visualizer-bars">
+                                    <span></span><span></span><span></span><span></span><span></span>
+                                    <span></span><span></span><span></span><span></span><span></span>
+                                </div>
+                            </div>
+                            <div id="music-player-container">
+                                <!-- YouTube player para audio -->
+                                <div id="music-youtube-player"></div>
+                                <!-- Audio HTML5 para MP3 -->
+                                <audio id="music-audio-player" controls class="hidden"></audio>
+                            </div>
+                            <div id="music-info" class="music-info hidden">
+                                <span class="music-icon">♫</span>
+                                <span id="music-title" class="music-title">Sin reproducción</span>
+                            </div>
+                        </div>
+                        <div class="music-controls">
+                            <button id="btn-music-sync" class="btn btn-secondary">Sincronizar</button>
+                            <span id="music-status" class="music-status"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenedor de Screen Share -->
+                <div id="screen-container" class="tab-content">
+                    <div class="screen-share-section">
+                        <div id="screen-video-wrapper" class="video-wrapper">
+                            <video id="screen-video" autoplay playsinline></video>
+                            <div id="screen-placeholder" class="screen-placeholder">
+                                <div class="placeholder-icon">□</div>
+                                <p>Nadie está compartiendo pantalla</p>
+                            </div>
+                        </div>
+                        <div class="screen-controls">
+                            <button id="btn-share-screen" class="btn btn-primary">
+                                Compartir Pantalla
+                            </button>
+                            <button id="btn-stop-share" class="btn btn-danger hidden">
+                                Dejar de Compartir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenedor de la Ruleta Mejorada -->
+                <div id="roulette-container" class="tab-content roulette-scroll">
+                    <!-- Se carga dinámicamente -->
+                </div>
+            </section>
+
+            <!-- Panel derecho: Usuarios y Chat -->
+            <aside class="sidebar">
+                <!-- Lista de usuarios -->
+                <div class="users-panel">
+                    <h3>Usuarios (<span id="user-count">0</span>)</h3>
+                    <ul id="users-list"></ul>
+                </div>
+
+                <!-- Cola de contenido -->
+                <div class="queue-panel">
+                    <div class="queue-header">
+                        <h3>Cola (<span id="queue-count">0</span>)</h3>
+                        <button id="btn-add-to-queue" class="btn btn-small btn-primary" title="Añadir a la cola">+</button>
+                    </div>
+                    <ul id="queue-list" class="queue-list"></ul>
+                    <div id="queue-empty" class="queue-empty">
+                        <span>▶</span>
+                        <p>La cola está vacía</p>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="chat-panel">
+                    <h3>Chat</h3>
+                    <div id="chat-messages" class="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="Escribe un mensaje...">
+                        <button id="btn-send-chat" class="btn btn-primary">Enviar</button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Zona de detección para header en modo cine -->
+        <div class="cinema-header-trigger" id="cinema-header-trigger"></div>
+    </div>
+
+    <!-- ================================================================== -->
+    <!-- COMPONENTE DE LA RULETA MEJORADA                                  -->
+    <!-- ================================================================== -->
+    <template id="roulette-template">
+        <div class="roulette-section">
+            <div class="roulette-header">
+                <h3>Ruleta de Películas</h3>
+                <p>¿No sabes qué ver? ¡Deja que la ruleta decida!</p>
+            </div>
+            
+            <!-- Añadir opciones -->
+            <div class="roulette-add">
+                <input type="text" id="roulette-option-input" placeholder="Título de película o serie..." maxlength="40">
+                <button id="btn-add-option" class="btn btn-primary">Añadir</button>
+            </div>
+            
+            <!-- Lista de opciones con chips -->
+            <div class="roulette-options-list">
+                <div class="options-header">
+                    <h4>Opciones (<span id="options-count">0</span>/20)</h4>
+                    <button id="btn-clear-options" class="btn btn-small btn-danger">Limpiar</button>
+                </div>
+                <ul id="roulette-options"></ul>
+            </div>
+            
+            <!-- La ruleta visual mejorada -->
+            <div class="roulette-wheel-container">
+                <div class="roulette-glow"></div>
+                <div class="roulette-pointer">
+                    <div class="pointer-arrow">▼</div>
+                </div>
+                <div id="roulette-wheel" class="roulette-wheel">
+                    <div class="wheel-center">▶</div>
+                    <!-- Segmentos generados dinámicamente -->
+                </div>
+            </div>
+            
+            <!-- Controles y resultado -->
+            <div class="roulette-controls">
+                <button id="btn-spin-roulette" class="btn btn-primary btn-spin" disabled>
+                    <span class="spin-text">Girar Ruleta</span>
+                </button>
+            </div>
+            
+            <div id="roulette-result" class="roulette-result hidden">
+                <span class="result-label">¡La ruleta ha decidido!</span>
+                <span id="result-text" class="result-text"></span>
+            </div>
+        </div>
+    </template>
+
+    <!-- ================================================================== -->
+    <!-- NOTIFICACIONES (Toast)                                            -->
+    <!-- ================================================================== -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- ================================================================== -->
+    <!-- MODAL PARA AÑADIR A LA COLA                                       -->
+    <!-- ================================================================== -->
+    <div id="queue-modal" class="queue-modal">
+        <div class="queue-modal-content">
+            <h3>Añadir a la Cola</h3>
+            <div class="form-group">
+                <label for="queue-url">URL del contenido (YouTube, Vimeo, etc.)</label>
+                <input type="text" id="queue-url" placeholder="https://youtube.com/watch?v=...">
+            </div>
+            <div class="form-group">
+                <label for="queue-title">Título (opcional)</label>
+                <input type="text" id="queue-title" placeholder="Nombre del video" maxlength="50">
+            </div>
+            <div class="modal-actions">
+                <button id="btn-cancel-queue" class="btn btn-secondary">Cancelar</button>
+                <button id="btn-confirm-queue" class="btn btn-primary">Añadir a Cola</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
